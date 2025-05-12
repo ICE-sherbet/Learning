@@ -1,0 +1,72 @@
+// Assets/Shaders/WaveGeodesic.compute
+
+#pragma kernel Init
+#pragma kernel Propagate
+
+RWTexture3D<float> D;
+Texture3D<float>  D_prev;
+Texture3D<float>  Occupancy;
+int3   _GridSize;
+float  _CellSize;
+int3   _EmitVoxel;
+
+// 26-way offsets と各コスト (セル長＝1 としたときの距離)
+static const int3 OFFS[26] = {
+    int3( 1, 0, 0), int3(-1, 0, 0), int3( 0, 1, 0),
+    int3( 0,-1, 0), int3( 0, 0, 1), int3( 0, 0,-1),
+    // 12 エッジ隣接 (√2)
+    int3( 1, 1, 0), int3( 1,-1, 0), int3(-1, 1, 0), int3(-1,-1, 0),
+    int3( 1, 0, 1), int3( 1, 0,-1), int3(-1, 0, 1), int3(-1, 0,-1),
+    int3( 0, 1, 1), int3( 0, 1,-1), int3( 0,-1, 1), int3( 0,-1,-1),
+    // 8 コーナー隣接 (√3)
+    int3( 1, 1, 1), int3( 1, 1,-1), int3( 1,-1, 1), int3( 1,-1,-1),
+    int3(-1, 1, 1), int3(-1, 1,-1), int3(-1,-1, 1), int3(-1,-1,-1)
+};
+static const float COST[26] = {
+    1,1,1,1,1,1,              // face
+    1.4142136,1.4142136,1.4142136,1.4142136,
+    1.4142136,1.4142136,1.4142136,1.4142136,
+    1.4142136,1.4142136,1.4142136,1.4142136,  // edge
+    1.7320508,1.7320508,1.7320508,1.7320508,
+    1.7320508,1.7320508,1.7320508,1.7320508   // corner
+};
+
+[numthreads(8,8,8)]
+void Init(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _GridSize.x || id.y >= _GridSize.y || id.z >= _GridSize.z) return;
+
+    bool isEmit =
+        (id.x == _EmitVoxel.x) &&
+        (id.y == _EmitVoxel.y) &&
+        (id.z == _EmitVoxel.z);
+
+    // Occupancy が 1 かつ 発射セルなら 0、そうでなければ∞
+    if (isEmit && Occupancy[id].r > 0.5)
+        D[id] = 0.0;
+    else
+        D[id] = 1e6;
+}
+
+[numthreads(8,8,8)]
+void Propagate(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _GridSize.x || id.y >= _GridSize.y || id.z >= _GridSize.z)
+        return;
+
+    float best = D_prev[id];
+    [unroll]
+    for (int i = 0; i < 26; i++)
+    {
+        int3 n = id + OFFS[i];
+        if (n.x < 0 || n.y < 0 || n.z < 0 ||
+            n.x >= _GridSize.x || n.y >= _GridSize.y || n.z >= _GridSize.z)
+            continue;
+
+        // ★Occupancy チェックをここからも削除★
+        float3 stepWS = float3(OFFS[i].x * _CellSize, OFFS[i].y * _CellSize, OFFS[i].z * _CellSize);
+        float cost   = length(stepWS);
+        best = min(best, D_prev[n] + cost);
+    }
+    D[id] = best;
+}
