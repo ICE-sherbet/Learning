@@ -6,6 +6,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/*
 namespace QBuild.StageEditor
 {
     public class StageEditorWindow : EditorWindow
@@ -772,3 +773,4 @@ namespace QBuild.StageEditor
         }
     }
 }
+*/

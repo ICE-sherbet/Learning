@@ -51,7 +51,7 @@ namespace QBuild.StageEditor
 
         static ObjectSnapper()
         {
-            var path = AssetDatabase.GUIDToAssetPath(AssetDatabase.FindAssets("t:SnapBehaviorObject")[0]);
+            //var path = AssetDatabase.GUIDToAssetPath(AssetDatabase.FindAssets("t:SnapBehaviorObject")[0]);
             _isEnable = EditorPrefs.GetBool("ObjectSnapper.isEnable", true);
             _isBlockOnly = EditorPrefs.GetBool("ObjectSnapper.isBlockOnly", true);
             Debug.Log(EditorPrefs.GetBool("ObjectSnapper.isEnable", true));

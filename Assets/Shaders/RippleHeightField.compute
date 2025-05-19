@@ -1,0 +1,70 @@
+// RippleHeightField.compute
+// ComputeShader for generating a height field with multiple overlapping ripple waves.
+
+#pragma kernel CSMain
+
+// Output texture (RFloat) storing the summed wave heights
+RWTexture2D<float> Result;
+// Definition matching C# WaveParam
+struct WaveParam {
+    float2 centerCell;    // Ripple center in cell-space (0..resX, 0..resZ)
+    float  startTime;     // Time at which this wave was spawned
+    float  speed;         // Cells per second propagation speed
+    float  wavelength;    // Wavelength in cells
+    float  attenuation;   // Exponential attenuation per cell
+    float  fadeDuration;  // Seconds to fade in/out per wave
+    float  amplitude;     // Peak amplitude height
+};
+// Array of active waves
+StructuredBuffer<WaveParam> _WaveParams;
+int _WaveCount;
+
+// Height field resolution (matches grid resolution)
+int2 _Resolution;
+
+// Current time (seconds)
+float _Time;
+
+
+
+[numthreads(8,8,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    // Bounds check
+    if (id.x >= _Resolution.x || id.y >= _Resolution.y)
+        return;
+
+    float sum = 0.0;
+    float2 cell = id.xy;
+
+    // Sum contributions of all active waves
+    for (int i = 0; i < _WaveCount; ++i)
+    {
+        WaveParam w = _WaveParams[i];
+
+        // Manhattan distance in cells between this texel and wave center
+        float dist = abs(cell.x - w.centerCell.x) + abs(cell.y - w.centerCell.y);
+
+        // Propagation time (in cells)
+        float t = (_Time - w.startTime) * w.speed;
+        if (t < 0.0) continue;
+
+        // Phase of the wave
+        float phase = (dist - t) / w.wavelength * 6.28318530718; // 2*pi
+        float raw   = sin(phase);
+
+        // Distance attenuation
+        float atten = exp(-w.attenuation * dist);
+
+        // Fade in/out based on time and distance
+        float fi   = saturate(t / w.fadeDuration);
+        float fo   = saturate((t - dist) / w.fadeDuration);
+        float fade = min(fi, fo);
+
+        // Accumulate height
+        sum += raw * atten * fade * w.amplitude;
+    }
+
+    // Write final height
+    Result[id.xy] = sum;
+}
