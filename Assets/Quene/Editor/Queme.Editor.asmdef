@@ -1,0 +1,16 @@
+{
+    "name": "Queme.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:c74c4dff7e1c5d940afe4ab975354eb2"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
